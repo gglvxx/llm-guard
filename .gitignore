@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Generated model artefact: it is a pickle, i.e. executable on load. It is rebuilt
+# from data/dataset.json at start-up and must never be committed or downloaded.
+data/model/
+
+# Local overrides and editor files
+config.local.yaml
+.env
+.vscode/
+.idea/

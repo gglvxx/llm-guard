@@ -1,0 +1,109 @@
+# LLM-Guard configuration
+# -----------------------------------------------------------------------------
+# Parsed with yaml.safe_load and validated by Pydantic (app/config.py): unknown
+# keys, wrong types and out-of-range values stop the server at start-up.
+# Use another file with:  LLM_GUARD_CONFIG=/path/to/config.yaml python -m app.main
+
+app:
+  name: LLM-Guard
+  # Demo mode exposes the firewall ON/OFF switch (firewall_enabled in the API),
+  # the telemetry reset endpoint and the interactive API docs.
+  # Set to false for anything that is not a demo: the firewall then always enforces.
+  demo_mode: true
+  max_input_chars: 4000
+  # closed: a detector that crashes blocks the request.  open: it is skipped.
+  fail_mode: closed
+  log_level: INFO
+
+# Stage 0 - normalisation and de-obfuscation -----------------------------------
+normalizer:
+  enabled: true
+  max_decode_depth: 2        # Base64-inside-Base64 and similar nesting
+  min_encoded_length: 16     # shortest token considered a Base64 candidate
+  max_decoded_chars: 4000
+  max_views: 12              # upper bound on decoded representations per prompt
+
+# Layer 1 - signatures + entropy -----------------------------------------------
+heuristics:
+  enabled: true
+  severity_scores:           # risk contributed by one rule of each severity (0-100)
+    low: 25
+    medium: 45
+    high: 75
+    critical: 95
+  evasion_bonus: 15          # added when a rule only matches after de-obfuscation
+  entropy_threshold: 4.5     # bits/char; random Base64 is ~5-6, plain English ~4
+  entropy_min_length: 32
+  disabled_rules: []         # e.g. [JB-008, PI-005]
+  custom_rules: []
+  # custom_rules:
+  #   - id: ORG-001
+  #     category: data_exfiltration
+  #     severity: high
+  #     pattern: '\bproject\s+bluebird\b'
+  #     description: Mentions an internal code name that must not be discussed
+
+# Layer 2 - ML intent classifier -----------------------------------------------
+ml:
+  enabled: true
+  dataset_path: data/dataset.json
+  model_dir: data/model
+  persist_model: true        # false = train in memory at start-up, never touch disk
+  decision_threshold: 0.5    # probability at which the classifier starts adding risk
+
+# Risk aggregation and policy ---------------------------------------------------
+policy:
+  # Trust weight of each input layer, 0-1. Scores are fused with a noisy-OR:
+  #   risk = 100 * (1 - (1 - w1*s1/100) * (1 - w2*s2/100) * (1 - w3*s3/100))
+  # A layer with weight 0.6 can raise the risk to at most 60 on its own, i.e. it
+  # can FLAG but cannot BLOCK without corroboration from another layer.
+  weights:
+    normalizer: 0.6
+    heuristic: 1.0
+    ml_classifier: 0.6
+  thresholds:
+    flag: 40                 # 0-39 ALLOW | 40-69 FLAG + sanitize | 70-100 BLOCK
+    block: 70
+  short_circuit: false       # true = stop the chain as soon as BLOCK is reached
+  block_message: >-
+    Request blocked by LLM-Guard: this prompt violates the security policy.
+    The incident has been logged (ref: {request_id}).
+
+# Layer 3 - output guardrail / DLP ----------------------------------------------
+dlp:
+  enabled: true
+  redaction_template: "[REDACTED:{label}]"
+  # Built-in detectors: PRIVATE_KEY, JWT, API_KEY, CREDENTIAL, EMAIL, CNP, SSN, CREDIT_CARD
+  disabled_detectors: []
+  custom_secret_patterns:
+    - label: SECRET
+      pattern: 'SECRET_FLAG\{[^}\s]{1,64}\}'
+  leak_shingle_size: 5               # word n-gram size for the system prompt fingerprint
+  leak_containment_threshold: 0.12   # share of the prompt that counts as a leak
+  output_block_message: >-
+    Response withheld by LLM-Guard: the model output contained protected information.
+    The incident has been logged (ref: {request_id}).
+
+# LLM providers ------------------------------------------------------------------
+providers:
+  default: mock              # mock | ollama (falls back to mock if Ollama is down)
+  mock:
+    simulated_latency_ms: 120
+  ollama:
+    base_url: http://127.0.0.1:11434
+    model: llama3.2
+    timeout_seconds: 60
+    health_timeout_seconds: 1.5
+    health_ttl_seconds: 15
+    allow_remote: false      # a non-loopback base_url must be an explicit decision
+
+# API protection -----------------------------------------------------------------
+rate_limit:
+  enabled: true
+  requests: 120             # per client; the dashboard itself polls about 20 times a minute
+  window_seconds: 60
+
+telemetry:
+  max_events: 500            # ring buffer size (memory is bounded by design)
+  recent_events: 50          # events returned by GET /api/v1/telemetry
+  prompt_preview_chars: 160

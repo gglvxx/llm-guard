@@ -1,0 +1,68 @@
+[project]
+name = "llm-guard-firewall"
+version = "1.0.0"
+description = "Multi-layer AI security firewall and telemetry engine for LLM applications"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    "error",
+    # Third-party deprecations must not break the suite of a project that pins lower bounds only.
+    "default::DeprecationWarning",
+    "default::PendingDeprecationWarning",
+    "default::FutureWarning",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",  # pycodestyle, pyflakes
+    "I",            # import order
+    "B",            # bugbear
+    "UP",           # modern syntax
+    "S",            # bandit security checks
+    "C4", "SIM",    # comprehensions, simplifications
+    "PT",           # pytest style
+    "T20",          # no stray print()
+    "RUF",
+]
+ignore = [
+    "E501",   # line length is handled by the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "RUF001", "RUF003"]
+"scripts/**" = ["T201"]
+# These files contain look-alike Unicode characters on purpose (homoglyph tables and payloads).
+"app/core/normalizer.py" = ["RUF001", "RUF002", "RUF003"]
+"app/api/presets.py" = ["RUF001", "RUF003"]
+"app/core/signatures.py" = ["RUF001"]
+"app/core/dlp.py" = ["RUF001"]
+"app/providers/mock.py" = ["RUF001"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+files = ["app", "scripts"]
+
+[[tool.mypy.overrides]]
+module = ["sklearn.*", "joblib.*", "httpx", "httpx2"]
+ignore_missing_imports = true
+
+# Which HTTP client is installed decides which ignore comment is "used" in this shim.
+[[tool.mypy.overrides]]
+module = "app.providers._http"
+warn_unused_ignores = false
+
+[tool.coverage.run]
+source = ["app"]
+branch = true

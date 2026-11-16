@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>LLM-Guard SOC console</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <h1>LLM-Guard</h1>
+        <p>AI security firewall</p>
+      </div>
+      <ul class="status" id="status" aria-label="System status">
+        <li>Connecting to the server</li>
+      </ul>
+      <button type="button" class="button button-quiet" id="reset-telemetry">Reset telemetry</button>
+    </header>
+
+    <main class="layout">
+      <section class="panel playground" aria-labelledby="playground-title">
+        <div class="panel-head">
+          <h2 id="playground-title">Playground</h2>
+          <fieldset class="switch" id="firewall-switch">
+            <legend class="visually-hidden">Firewall</legend>
+            <label>
+              <input type="radio" name="firewall" value="on" checked />
+              <span>Firewall on</span>
+            </label>
+            <label>
+              <input type="radio" name="firewall" value="off" />
+              <span>Firewall off</span>
+            </label>
+          </fieldset>
+        </div>
+        <p class="mode-note" id="mode-note"></p>
+
+        <ol class="transcript" id="transcript" aria-live="polite" aria-label="Conversation"></ol>
+
+        <form class="composer" id="chat-form">
+          <label class="visually-hidden" for="message">Message</label>
+          <textarea
+            id="message"
+            name="message"
+            rows="2"
+            maxlength="4000"
+            placeholder="Ask the helpdesk bot something, or try to break it"
+            required
+          ></textarea>
+          <button type="submit" class="button button-primary" id="send">Send</button>
+        </form>
+
+        <div class="presets">
+          <div class="presets-head">
+            <h3>One-click scenarios</h3>
+            <button type="button" class="button button-quiet" id="run-all">Run all scenarios</button>
+          </div>
+          <div class="preset-group">
+            <h4>Legitimate</h4>
+            <div class="preset-list" id="presets-benign"></div>
+          </div>
+          <div class="preset-group">
+            <h4>Attacks</h4>
+            <div class="preset-list" id="presets-attack"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="telemetry" aria-labelledby="telemetry-title">
+        <h2 class="visually-hidden" id="telemetry-title">Live telemetry</h2>
+
+        <dl class="kpis" id="kpis">
+          <div class="kpi"><dt>Requests</dt><dd id="kpi-total">0</dd></div>
+          <div class="kpi kpi-block"><dt>Blocked</dt><dd id="kpi-blocked">0</dd></div>
+          <div class="kpi kpi-flag"><dt>Flagged</dt><dd id="kpi-flagged">0</dd></div>
+          <div class="kpi"><dt>Values masked</dt><dd id="kpi-redactions">0</dd></div>
+          <div class="kpi"><dt>Firewall overhead</dt><dd><span id="kpi-latency">0.0</span><small>ms avg</small></dd></div>
+          <div class="kpi kpi-missed"><dt>Missed while off</dt><dd id="kpi-missed">0</dd></div>
+        </dl>
+
+        <section class="panel last-request" aria-labelledby="last-title">
+          <div class="panel-head">
+            <h3 id="last-title">Latest request</h3>
+            <p class="verdict" id="verdict"></p>
+          </div>
+          <div id="last-empty" class="empty">
+            No request yet. Send a message and its path through the firewall appears here.
+          </div>
+          <div id="last-body" hidden>
+            <div class="riskbar" id="riskbar" role="img" aria-label="Risk score">
+              <div class="riskbar-track">
+                <span class="zone zone-allow" id="zone-allow"></span>
+                <span class="zone zone-flag" id="zone-flag"></span>
+                <span class="zone zone-block" id="zone-block"></span>
+                <span class="riskbar-fill" id="risk-fill"></span>
+                <span class="riskbar-needle" id="risk-needle"></span>
+              </div>
+              <div class="riskbar-scale" aria-hidden="true">
+                <span class="scale-start">0 allow</span>
+                <span class="scale-flag" id="scale-flag">40 flag</span>
+                <span class="scale-block" id="scale-block">70 block</span>
+              </div>
+            </div>
+            <ol class="trace" id="trace" aria-label="Path of the request through the pipeline"></ol>
+            <p class="timing" id="timing"></p>
+            <div class="findings" id="findings"></div>
+          </div>
+        </section>
+
+        <div class="split">
+          <section class="panel vectors" aria-labelledby="vectors-title">
+            <div class="panel-head"><h3 id="vectors-title">Top attack vectors</h3></div>
+            <ol class="vector-list" id="vector-list"></ol>
+          </section>
+          <section class="panel feed" aria-labelledby="feed-title">
+            <div class="panel-head">
+              <h3 id="feed-title">Security events</h3>
+              <p class="live" id="live-state">Live</p>
+            </div>
+            <ol class="feed-list" id="feed-list"></ol>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
